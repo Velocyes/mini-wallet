@@ -60,5 +60,19 @@ def enable_wallet():
     wallets[wallet_id] = {"id": wallet_id, "owned_by": customer_id, "status": "enabled", "enabled_at": enabled_at, "balance": 0}
     return jsonify({"status": "success", "data": {"wallet": wallets[wallet_id]}}), 201
 
+@app.route("/api/v1/wallet", methods=["GET"])
+def view_balance():
+    token = request.headers.get("Authorization", "").replace("Token ", "")
+    if not token or not _authenticate(token):
+        return jsonify({"status": "fail", "data": {"error": "Unauthorized"}}), 401
+
+    customer_id = decode_jwt_token(token)
+    wallet_id = customers[customer_id].get("wallet_id")
+
+    if not wallet_id or wallets[wallet_id]["status"] != "enabled":
+        return jsonify({"status": "fail", "data": {"error": "Wallet disabled"}}), 404
+
+    return jsonify({"status": "success", "data": {"wallet": wallets[wallet_id]}}), 200
+
 if __name__ == "__main__":
     app.run(debug=True)
