@@ -4,6 +4,7 @@ import jwt
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+customers = {}
 
 SECRET_KEY = "JULO"
 
@@ -24,6 +25,18 @@ def decode_jwt_token(token):
 def _authenticate(token):
     customer_id = decode_jwt_token(token)
     return customer_id is not None
+
+
+@app.route("/api/v1/init", methods=["POST"])
+def initialize_account():
+    customer_xid = request.form.get("customer_xid")
+    if not customer_xid:
+        return jsonify({"status": "fail", "data": {"error": {"customer_xid": ["Missing data for required field."]}}}), 400
+    
+    token = generate_jwt_token(customer_xid)
+    
+    customers[customer_xid] = {"wallet_id": None}
+    return jsonify({"status": "success", "data": {"token": token}}), 201
 
 if __name__ == "__main__":
     app.run(debug=True)
