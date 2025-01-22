@@ -129,6 +129,64 @@ def add_money():
             }
         }
     }), 201
+    
+@app.route("/api/v1/wallet/withdrawals", methods=["POST"])
+def withdraw_money():
+    token = request.headers.get("Authorization", "").replace("Token ", "")
+    if not token or not _authenticate(token):
+        return jsonify({"status": "fail", "data": {"error": "Unauthorized"}}), 401
+
+    amount = request.form.get("amount")
+    reference_id = request.form.get("reference_id")
+
+    if not amount or not reference_id:
+        return jsonify({"status": "fail", "data": {"error": "Invalid input"}}), 400
+    
+    try:
+        amount = int(amount)
+    except ValueError:
+        return jsonify({"status": "fail", "data": {"error": "Invalid input"}}), 400
+
+    customer_id = decode_jwt_token(token)
+    wallet_id = customers[customer_id].get("wallet_id")
+
+    if not wallet_id or wallets[wallet_id]["status"] != "enabled":
+        return jsonify({"status": "fail", "data": {"error": "Wallet disabled"}}), 404
+
+    if wallets[wallet_id]["balance"] < amount:
+        return jsonify({"status": "fail", "data": {"error": "Insufficient balance"}}), 400
+
+    if reference_id in transactions:
+        return jsonify({"status": "fail", "data": {"error": "Duplicate reference_id"}}), 400
+
+    wallets[wallet_id]["balance"] -= amount
+
+    withdrawal_id = uuid.uuid4().hex
+    withdrawn_at = datetime.utcnow().isoformat()
+
+    transactions[withdrawal_id] = {
+        "id": withdrawal_id,
+        "wallet_id": wallet_id,
+        "status": "success",
+        "type": "withdrawal",
+        "transacted_at": withdrawn_at,
+        "amount": amount,
+        "reference_id": reference_id
+    }
+
+    return jsonify({
+        "status": "success",
+        "data": {
+            "withdrawal": {
+                "id": withdrawal_id,
+                "deposited_by": customer_id,
+                "status": "success",
+                "deposited_at": withdrawn_at,
+                "amount": amount,
+                "reference_id": reference_id
+            }
+        }
+    }), 201
 
 if __name__ == "__main__":
     app.run(debug=True)
