@@ -75,6 +75,37 @@ def view_balance():
 
     return jsonify({"status": "success", "data": {"wallet": wallets[wallet_id]}}), 200
 
+@app.route("/api/v1/wallet/transactions", methods=["GET"])
+def view_transactions():
+    token = request.headers.get("Authorization", "").replace("Token ", "")
+    if not token or not _authenticate(token):
+        return jsonify({"status": "fail", "data": {"error": "Unauthorized"}}), 401
+
+    customer_id = decode_jwt_token(token)
+    wallet_id = customers[customer_id].get("wallet_id")
+
+    if not wallet_id or wallets[wallet_id]["status"] != "enabled":
+        return jsonify({"status": "fail", "data": {"error": "Wallet disabled"}}), 404
+
+    formatted_transactions = []
+    for txn in transactions.values():
+        if txn["wallet_id"] == wallet_id:
+            formatted_transactions.append({
+                "id": txn["id"],
+                "status": txn["status"],
+                "transacted_at": txn["transacted_at"],
+                "type": txn["type"],
+                "amount": txn["amount"],
+                "reference_id": txn["reference_id"]
+            })
+    
+    return jsonify({
+        "status": "success",
+        "data": {
+            "transactions": formatted_transactions
+        }
+    }), 200
+
 @app.route("/api/v1/wallet/deposits", methods=["POST"])
 def add_money():
     token = request.headers.get("Authorization", "").replace("Token ", "")
